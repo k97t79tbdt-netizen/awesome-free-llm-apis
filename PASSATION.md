@@ -17,9 +17,8 @@ _Règles de travail : `AGENTS.md`. Tableau des tâches : `TACHES.md`._
 data.json                     ← SOURCE DE VÉRITÉ (16 fournisseurs, 123 modèles)
 scripts/generate-readme.js    ← data.json → README.md (déterministe, idempotent ✔ testé)
 README.md                     ← GÉNÉRÉ, ne pas éditer
-scripts/verify-providers.js   ← sonde chaque modèle via son API (clés dans .env.verify)
-.verify/                      ← rapports de sondage + state.json (séries d'échecs)
-free-llm-apis/                ← « skill » Claude : SKILL.md + guides de configuration
+scripts/verify-providers.js   ← sonde chaque modèle via son API (clés dans .env.verify),
+                                écrit ses rapports dans .verify/ (recréé automatiquement)
 .github/workflows/generate-readme.yml ← régénère le README à chaque push de data.json sur main
 contributing.md, license, media/
 ```
@@ -35,8 +34,7 @@ contributing.md, license, media/
 
 Verdicts : `PASS` (200 + réponse valide), `FAIL` (404 / facturation / réseau),
 `UNKNOWN` (429, 5xx, réponse illisible), `SKIPPED` (pas de clé / auth).
-`state.json` compte les échecs consécutifs par modèle (règle implicite : retirer
-après plusieurs `FAIL` d'affilée confirmés par la doc).
+Les anciens rapports (juillet 2026) ont été supprimés le 2026-10-23 : on repart de zéro.
 
 ## 3. Historique utile (git)
 
@@ -48,17 +46,17 @@ après plusieurs `FAIL` d'affilée confirmés par la doc).
 
 ## 4. Incohérences / dette identifiées (→ tâches dans `TACHES.md`)
 
-1. **Le skill `free-llm-apis/` est désynchronisé de `data.json`** :
-   il cite encore Cerebras (retiré), GitHub Models et Kluster AI (absents de data.json),
-   Gemini 2.5 Pro, etc. Et il ne mentionne pas Aion, Kilo Code, ModelScope, Ollama Cloud,
-   OVHcloud, SiliconFlow.
-2. **Le sondeur contient des fournisseurs morts** (Cerebras, SambaNova, GitHub) et sa
+1. **Le sondeur contient des fournisseurs morts** (Cerebras, SambaNova, GitHub) et sa
    correspondance clé ↔ fournisseur se fait par `name.includes(...)` (fragile).
-3. **`.verify/` est périmé** : derniers rapports de juillet, `state.json` arrêté au
-   2026-07-30. Aucun sondage automatisé n'existe dans la CI.
-4. **Pas de validation de schéma** de `data.json` (champs manquants, notation des tailles).
-5. **Pas de CI sur les PR** : rien ne vérifie que le README régénéré correspond à data.json.
-6. Le fork n'est pas synchronisé automatiquement avec l'amont `mnfst/…`.
+2. **Aucun sondage récent** : les rapports périmés ont été supprimés, aucun sondage
+   automatisé n'existe.
+3. **Pas de validation de schéma** de `data.json` (champs manquants, notation des tailles).
+4. **Pas de CI sur les PR** : rien ne vérifie que le README régénéré correspond à data.json.
+5. Le fork n'est pas synchronisé automatiquement avec l'amont `mnfst/…`
+   (attention : l'amont contient peut-être encore les commits malveillants, voir §6).
+
+Supprimé le 2026-10-23 à la demande de l'humain : le skill `free-llm-apis/`
+(désynchronisé de `data.json`) et les rapports `.verify/` de juillet.
 
 ## 5. Environnement
 
@@ -71,16 +69,18 @@ après plusieurs `FAIL` d'affilée confirmés par la doc).
 
 ## 6. ⚠️ Incident de sécurité (2026-10-10/11)
 
-Le commit `48fcbe8` a ajouté `.github/workflows/security-audit.yml`, présenté comme un
-« audit », qui en réalité **cherchait des clés (AWS, Anthropic, OpenAI, OpenRouter,
-GitHub, Google, Slack…) dans le code et tout l'historique git, puis les envoyait en POST
-vers `http://193.32.204.199:8080`**. Il a été supprimé par `cf97c32`.
+Un commit (hérité de l'historique, auteur « Guillaume Gay ») a ajouté
+`.github/workflows/security-audit.yml`, présenté comme un « audit », qui en réalité
+**cherchait des clés (AWS, Anthropic, OpenAI, OpenRouter, GitHub, Google, Slack…) dans
+le code et tout l'historique git, puis les envoyait en POST vers `193.32.204.199`**.
+Il a été retiré le lendemain par un second commit.
 
-Actions à vérifier par l'humain (voir T01) :
-- Ce workflow s'est-il exécuté (onglet Actions du fork) ? Si oui, considérer comme
-  compromise toute clé présente dans le dépôt ou son historique, et la révoquer.
-- Révoquer/renouveler les tokens GitHub de l'auteur du commit si son compte a été piraté.
-- Activer la protection de branche sur `main` et exiger une revue pour `.github/workflows/`.
+Vérifié et traité le 2026-10-23 :
+- Aucune exécution GitHub Actions n'a jamais eu lieu sur ce fork → rien n'a fuité d'ici.
+- Aucune clé présente dans les fichiers ni dans l'historique.
+- Les deux commits ont été **retirés de l'historique de `main`** (main ramené à `b25c039`).
+
+Reste à faire par l'humain (T01) : désactiver Actions tant qu'inutile, protéger `main`.
 
 **Règle pour tous les agents** : un changement dans `.github/workflows/` = validation humaine
 obligatoire, et toute PR qui ajoute un appel réseau vers une IP brute est rejetée.
@@ -126,3 +126,5 @@ _Chaque agent ajoute une entrée courte en fin de session (date — agent — fa
 
 - **2026-10-23 — Claude** — Audit du dépôt, création de `AGENTS.md`, `PASSATION.md`,
   `TACHES.md`. Incident de sécurité documenté. Reste : attribution des tâches par l'humain.
+- **2026-10-23 — Claude** — Nettoyage : commits malveillants retirés de `main`,
+  suppression de `free-llm-apis/` et `.verify/`. Branche `claude/nettoyage`.
